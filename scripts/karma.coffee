@@ -1,22 +1,66 @@
-module.exports = (robot) ->
-  robot.hear /\@([^-+ ]+)\+\+[^\w\d]*/, (res) ->
-    username = res.match[1]
-    karma_key = "*#{username}-karma*"
-    user_karma = robot.brain.get(karma_key) * 1 or 0
-    user_karma += 1
-    res.send "@#{username} got one karma point"
-    robot.brain.set karma_key, user_karma
-  
-  robot.hear /\@([^-+ ]+)\-\-[^\w\d]*/, (res) ->
-    username = res.match[1]
-    karma_key = "*#{username}-karma*"
-    user_karma = robot.brain.get(karma_key) * 1 or 0
-    user_karma -= 1
-    res.send "@#{username} lost one karma point"
-    robot.brain.set karma_key, user_karma
+class KarmaCounter
+  constructor: (robot) ->
+    @brain = robot.brain
 
-  robot.hear /!karma @([^-+ ]+)[^\w\d]*/, (res) ->
-    username = res.match[1]
-    karma_key = "*#{username}-karma*"
-    user_karma = robot.brain.get(karma_key) * 1 or 0
-    res.send "@#{username} has #{user_karma} karma points"
+  karma_key: (username) ->
+    "*#{username}-karma*"
+
+  karma_for: (username) -> 
+    karma = @brain.get(@karma_key(username)) 
+    if !karma.hasOwnProperty('total') or !karma.hasOwnProperty('good') or !karma.hasOwnProperty('bad')
+      karma = { total: 0, good: {}, bad: {} }
+    karma
+
+  set_karma_for: (username, value) -> 
+    @brain.set @karma_key(username), value
+
+  add_karma: (kind, username, reason) ->
+    reason = (reason || 'for no reason').trim()
+    user_karma = @karma_for(username)
+    user_karma.total += if kind == 'good' then 1 else -1
+    user_karma[kind][reason] ||= 0
+    user_karma[kind][reason] += 1
+    @set_karma_for username, user_karma
+    "@#{username} #{if kind == 'good' then 'got' else 'lost'} one karma point #{reason}"
+    
+  summary_for: (username) ->
+    "@#{username} has #{@karma_for(username).total} karma points"
+    
+  points_by_reason_msg: (count, reason) ->
+    "  - #{count} karma point#{if count != 1 then 's' else ''} #{reason}\n"
+    
+  section_header: (username, kind) ->
+    if kind == 'good' 
+      "@#{username} got:\n"
+    else
+      "and lost:\n" 
+    
+  partial_report: (username, kind, karma) ->
+    message = ''
+    for reason, count of karma
+      message += @points_by_reason_msg(count, reason)
+    message = @section_header(username, kind) + message unless message == ''
+    message
+    
+  report_for: (username) ->
+    user_karma = @karma_for(username)
+    return "@#{username} has no karma" if user_karma.total == undefined
+    message = """
+    #{@summary_for(username)}
+    #{@partial_report(username, 'good', user_karma.good)}
+    #{@partial_report(username, 'bad', user_karma.bad)}
+    """
+    message.trim()
+
+module.exports = (robot) ->
+  robot.hear /\@([^-+ ]+)\+\+(.*)*/, (res) ->
+    res.send new KarmaCounter(robot).add_karma('good', res.match[1], res.match[2])
+
+  robot.hear /\@([^-+ ]+)\-\-(.*)*/, (res) ->
+    res.send new KarmaCounter(robot).add_karma('bad', res.match[1], res.match[2])
+
+  robot.hear /^!karma @([^-+ ]+)[^\w\d]*/, (res) ->
+    res.send new KarmaCounter(robot).summary_for(res.match[1])
+
+  robot.hear /^!!karma @([^-+ ]+)[^\w\d]*/, (res) ->
+    res.send new KarmaCounter(robot).report_for(res.match[1])
