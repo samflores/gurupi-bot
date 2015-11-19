@@ -14,6 +14,9 @@ class KarmaCounter
   set_karma_for: (username, value) -> 
     @brain.set @karma_key(username), value
 
+  plural: (count) ->
+    if count != 1 then 's' else ''
+
   add_karma: (kind, username, reason) ->
     reason = (reason || 'for no reason').trim()
     user_karma = @karma_for(username)
@@ -24,10 +27,11 @@ class KarmaCounter
     "@#{username} #{if kind == 'good' then 'got' else 'lost'} one karma point #{reason}"
     
   summary_for: (username) ->
-    "@#{username} has #{@karma_for(username).total} karma points"
+    count = @karma_for(username).total
+    "@#{username} has #{count} karma point#{@plural(count)}"
     
   points_by_reason_msg: (count, reason) ->
-    "  * #{count} karma point#{if count != 1 then 's' else ''} #{reason}\n"
+    "  * #{count} karma point#{@plural(count)} #{reason}\n"
     
   section_header: (username, kind) ->
     "#{if kind == 'good' then 'got' else 'lost'}:\n"
