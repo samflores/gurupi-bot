@@ -7,7 +7,7 @@ class KarmaCounter
 
   karma_for: (username) -> 
     karma = @brain.get(@karma_key(username)) 
-    if !karma.hasOwnProperty('total') or !karma.hasOwnProperty('good') or !karma.hasOwnProperty('bad')
+    if !karma or !karma.hasOwnProperty('total') or !karma.hasOwnProperty('good') or !karma.hasOwnProperty('bad')
       karma = { total: 0, good: {}, bad: {} }
     karma
 
