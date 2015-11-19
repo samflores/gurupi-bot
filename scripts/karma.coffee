@@ -27,13 +27,10 @@ class KarmaCounter
     "@#{username} has #{@karma_for(username).total} karma points"
     
   points_by_reason_msg: (count, reason) ->
-    "  - #{count} karma point#{if count != 1 then 's' else ''} #{reason}\n"
+    "  * #{count} karma point#{if count != 1 then 's' else ''} #{reason}\n"
     
   section_header: (username, kind) ->
-    if kind == 'good' 
-      "@#{username} got:\n"
-    else
-      "and lost:\n" 
+    "#{if kind == 'good' then 'got' else 'lost'}:\n"
     
   partial_report: (username, kind, karma) ->
     message = ''
